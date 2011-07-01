@@ -1,30 +1,31 @@
 --- v1.0 (May 2, 2009)
 	- Initial release under GPLv2. 
-	- Supports 1 alternate mapping. Hold 'Start' at power-up.
+	- Supports standard controllers (ABCXYZ Start L/R D-pad)
+	- Supports the analog controller (Analog, D-pad, ABCXYZ Sart L/R buttons
+	and L/R sliders.)
+	- Supports the mouse.
+	
 
+^ Sega Pin #   ^ Name(s)   ^ MCU port / power ^
+| 1            | VCC       | VCC              |
+| 2            | D1        | PC2              |
+| 3            | D0        | PC3              |
+| 4            | S0        | PC5              |
+| 5            | S1        | PC4              |
+| 6            | D4        | PB5              |
+| 7            | D3        | PC0              |
+| 8            | D2        | PC1              |
+| 9            | GND       | GND              |
 
-	Connect Clock to PC5
-	Connect Latch to PC4
-	Connect Data to PC3
-	Connect Pin2 (+5volts) to 5 volts
-	Connect Ground to Ground...
+Most of it is from:
+http://www.gamesx.com/controldata/saturn.htm
 
-	Do not connect Vbat.
+The above website defines pin 6 as follows:
+	"+5v (Inp)"
 
+But this is in fact an output used for the Analog controller
+and Mouse for handshaking. It was found that this works
+exactly like the Genesis multitap!
 
-Pin  Color   Name
------------------------------------
- 1   Yellow  Data
- 2   Blue    +5 volts
- 3   Brown   Reset (Latch)
- 4   Orange  Clock
- 5   Black   Ground
- 6   Red     Vbat (battery power)
-
- _________
-/ 3  2  1 \
-| 6  5  4 |
-'---------'
-(looking into cable)
-
+http://www.raphnet.net/divers/documentation/genesis_multitap.txt
 
