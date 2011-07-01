@@ -1,5 +1,5 @@
-/* VBoy2USB: Virtual Boy controller to USB Adapter
- * Copyright (C) 2009 Raphaël Assénat
+/* Saturn to USB : Sega saturn controllers to USB adapter
+ * Copyright (C) 2011 Raphaël Assénat
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

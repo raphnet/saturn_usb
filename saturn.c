@@ -1,5 +1,5 @@
-/* VBoy2USB: Virtual Boy to USB adapter
- * Copyright (C) 2009 Raphaël Assénat
+/* Saturn to USB : Sega saturn controllers to USB adapter
+ * Copyright (C) 2011 Raphaël Assénat
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -478,14 +478,14 @@ static char saturnChanged(unsigned char report_id)
 					report_sizes[report_id]);
 }
 
-#include "report_desc_4axes_16btns.c"
+#include "report_4a_16b_mouse4.c"
 
 Gamepad saturnGamepad = {
 	num_reports: 		2,
 	reportDescriptorSize:	sizeof(usbHidReportDescriptor_4axes_16btns),
-	init: 			saturnInit,
-	update: 		saturnUpdate,
-	changed:		saturnChanged,
+	init: 				saturnInit,
+	update: 			saturnUpdate,
+	changed:			saturnChanged,
 	buildReport:		saturnBuildReport
 };
 
