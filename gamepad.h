@@ -2,8 +2,7 @@
 #define _gamepad_h__
 
 typedef struct {
-	// size of reports built by buildReport
-	int report_size;
+	int num_reports;
 
 	int reportDescriptorSize;
 	void *reportDescriptor; // must be in flash
@@ -13,8 +12,10 @@ typedef struct {
 	
 	void (*init)(void);
 	void (*update)(void);
-	char (*changed)(void);
-	void (*buildReport)(unsigned char *buf);
+	char (*changed)(unsigned char report_id);
+
+	/** \return The number of bytes written */
+	char (*buildReport)(unsigned char *buf, unsigned char report_id);
 } Gamepad;
 
 #endif // _gamepad_h__

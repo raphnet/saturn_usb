@@ -128,7 +128,7 @@ static void hardwareInit(void)
 
 }
 
-static uchar    reportBuffer[6];    /* buffer for HID reports */
+static uchar    reportBuffer[16];    /* buffer for HID reports */
 
 
 
@@ -170,9 +170,7 @@ uchar	usbFunctionSetup(uchar data[8])
 	usbMsgPtr = reportBuffer;
 	if((rq->bmRequestType & USBRQ_TYPE_MASK) == USBRQ_TYPE_CLASS){    /* class request type */
 		if(rq->bRequest == USBRQ_HID_GET_REPORT){  /* wValue: ReportType (highbyte), ReportID (lowbyte) */
-			/* we only have one report type, so don't look at wValue */
-			curGamepad->buildReport(reportBuffer);
-			return curGamepad->report_size;
+			return curGamepad->buildReport(reportBuffer, rq->wValue.bytes[0]);
 		}else if(rq->bRequest == USBRQ_HID_GET_IDLE){
 			usbMsgPtr = &idleRate;
 			return 1;
@@ -192,7 +190,7 @@ int main(void)
 {
 	char must_report = 0, first_run = 1;
 	uchar   idleCounter = 0;
-	int run_mode;
+	int run_mode, i;
 
 	run_mode = (PINB & 0x06)>>1;
 
@@ -248,7 +246,7 @@ int main(void)
 					idleCounter -= 5;   /* 22 ms in units of 4 ms */
 				}else{
 					idleCounter = idleRate;
-					must_report = 1;
+					must_report = 3;;
 				}
 			}
 		}
@@ -256,16 +254,20 @@ int main(void)
 		if (TIFR & (1<<OCF2))
 		{
 			TIFR = 1<<OCF2;
+
 			if (!must_report)
 			{
 				sleep_enable();
 				sleep_cpu();
 				sleep_disable();
 				_delay_us(100);
-
+				
 				curGamepad->update();
-				if (curGamepad->changed()) {
-					must_report = 1;
+
+				for (i=0; i<curGamepad->num_reports; i++) {			
+					if (curGamepad->changed(i+1)) {
+						must_report |= (1<<i);
+					}
 				}
 			}
 
@@ -274,14 +276,21 @@ int main(void)
 			
 		if(must_report)
 		{
-			if (usbInterruptIsReady())
-			{ 	
+			
+			for (i=0; i<curGamepad->num_reports; i++) {
+				int len;
 
-			must_report = 0;
+				if (!(must_report & (1<<i)))
+					continue;
 
-			curGamepad->buildReport(reportBuffer);
-			usbSetInterrupt(reportBuffer, curGamepad->report_size);
+				len = curGamepad->buildReport(reportBuffer, i+1);
+				while(!usbInterruptIsReady()) {
+					usbPoll();
+				}
+				usbSetInterrupt(reportBuffer, len);
+				must_report &= ~(1<<i);
 			}
+			
 		}
 		/*	
 		if(must_report && usbInterruptIsReady()){
