@@ -1,4 +1,9 @@
---- v1.0 (May 2, 2009)
+--- v1.1 (Jul 2, 2011)
+    - Changed default mapping to be more suitable for PS3
+	- Two alternate mappings can be enabled by holding buttons
+	at startup (A and B)
+
+--- v1.0 (Jul 2, 2011)
 	- Initial release under GPLv2. 
 	- Supports standard controllers (ABCXYZ Start L/R D-pad)
 	- Supports the analog controller (Analog, D-pad, ABCXYZ Sart L/R buttons

@@ -148,6 +148,67 @@ static void idleMouse(void)
 	mouse_report[0] = MOUSE_REPORT_ID;
 }
 
+#define MAPPING_UNDEFINED	0
+
+#define MAPPING_SLS			1
+#define MAPPING_VIP			2
+#define MAPPING_IDENTITY	3
+
+static char current_mapping = MAPPING_UNDEFINED;
+
+static void permuteButtons(void)
+{
+	unsigned short buttons_in, buttons_out;
+	unsigned char *joy_report = last_built_report[JOYSTICK_REPORT_IDX];
+	char ideal[9] = { 1, 2, 5, 0, 3, 4, 9, 6, 7 };
+	char vip[9] =	{ 1, 2, 5, 0, 3, 4, 8, 6, 7 };
+	int i;
+	char *permuter;
+
+
+	buttons_in = joy_report[5];
+	buttons_in |= joy_report[6] << 8;
+	
+
+	/* Only run once. Hold A or B at power-up to select mappings. */
+	if (current_mapping == MAPPING_UNDEFINED) {
+		
+		current_mapping = MAPPING_SLS; // default. 
+
+		if (buttons_in & 0x01) // A
+			current_mapping = MAPPING_VIP;
+		if (buttons_in & 0x02) // B
+			current_mapping = MAPPING_IDENTITY;
+	}
+
+	switch(current_mapping)
+	{
+		default:
+		case MAPPING_IDENTITY:
+			return;
+
+		case MAPPING_SLS:
+			permuter = ideal;
+			break;
+
+		case MAPPING_VIP:
+			permuter = vip;
+			break;
+	}	
+
+	buttons_out = buttons_in;
+	buttons_out &= ~0x1FF; // clear buttons
+
+	for (i=0; i<9; i++) {
+		if (buttons_in & (1<<i)) {
+			buttons_out |= (1<<permuter[i]);
+		}
+	}
+
+	joy_report[5] = buttons_out;
+	joy_report[6] = buttons_out >> 8;
+}
+
 static char saturnReadMouse(void)
 {
 	unsigned char dat[32];
@@ -304,13 +365,13 @@ static char saturnReadAnalog(void)
 	}
 	else {
 		if (!(dat[2] & 0x08)) // Right
-			joy_report[6] |= 0x02;
-		if (!(dat[2] & 0x04)) // Left
 			joy_report[6] |= 0x04;
-		if (!(dat[2] & 0x02)) // Down
+		if (!(dat[2] & 0x04)) // Left
 			joy_report[6] |= 0x08;
-		if (!(dat[2] & 0x01)) // Up
+		if (!(dat[2] & 0x02)) // Down
 			joy_report[6] |= 0x10;
+		if (!(dat[2] & 0x01)) // Up
+			joy_report[6] |= 0x20;
 
 		// switch is in the "o" position
 		joy_report[1] = (dat[7] & 0xf) | (dat[6] << 4);
@@ -420,9 +481,12 @@ static void saturnUpdate(void)
 	last_built_report[4] = tmp;
 	last_built_report[5] = 0;
 #endif
+
 	if (tmp == 0x11) {	
 		idleMouse();
-		saturnReadAnalog();	
+		if (0 == saturnReadAnalog()) {
+			permuteButtons();
+		}
 		return;
 	}
 	
@@ -430,6 +494,7 @@ static void saturnUpdate(void)
 	if ((tmp & 0x17) == 0x14) {
 		idleMouse();
 		saturnReadPad();
+		permuteButtons();
 		return;
 	}
 
