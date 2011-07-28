@@ -151,8 +151,9 @@ static void idleMouse(void)
 #define MAPPING_UNDEFINED	0
 
 #define MAPPING_SLS			1
-#define MAPPING_VIP			2
-#define MAPPING_IDENTITY	3
+#define MAPPING_SLS_ALT		2	// Saturn start -> PS3 select
+#define MAPPING_VIP			3
+#define MAPPING_IDENTITY	4
 
 static char current_mapping = MAPPING_UNDEFINED;
 
@@ -160,11 +161,13 @@ static void permuteButtons(void)
 {
 	unsigned short buttons_in, buttons_out;
 	unsigned char *joy_report = last_built_report[JOYSTICK_REPORT_IDX];
-	char ideal[9] = { 1, 2, 5, 0, 3, 4, 9, 6, 7 };
-	char vip[9] =	{ 1, 2, 5, 0, 3, 4, 8, 6, 7 };
 	int i;
-	char *permuter;
 
+	/* Saturn		:   A  B  C  X  Y  Z  S  L  R */		 
+	char sls[9]		= { 1, 2, 5, 0, 3, 4, 9, 6, 7 };
+	char sls_alt[9]	= { 1, 2, 5, 0, 3, 4, 8, 6, 7 };
+	char vip[9] 	= { 0, 1, 2, 3, 4, 5, 8, 6, 7 };
+	char *permuter;
 
 	buttons_in = joy_report[5];
 	buttons_in |= joy_report[6] << 8;
@@ -176,8 +179,10 @@ static void permuteButtons(void)
 		current_mapping = MAPPING_SLS; // default. 
 
 		if (buttons_in & 0x01) // A
-			current_mapping = MAPPING_VIP;
+			current_mapping = MAPPING_SLS_ALT;
 		if (buttons_in & 0x02) // B
+			current_mapping = MAPPING_VIP;
+		if (buttons_in & 0x04) // C
 			current_mapping = MAPPING_IDENTITY;
 	}
 
@@ -188,7 +193,11 @@ static void permuteButtons(void)
 			return;
 
 		case MAPPING_SLS:
-			permuter = ideal;
+			permuter = sls;
+			break;
+
+		case MAPPING_SLS_ALT:
+			permuter = sls_alt;
 			break;
 
 		case MAPPING_VIP:
