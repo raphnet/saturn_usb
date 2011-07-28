@@ -1,7 +1,15 @@
---- v1.1 (Jul 2, 2011)
+--- v1.1 (Jul 27, 2011)
     - Changed default mapping to be more suitable for PS3
-	- Two alternate mappings can be enabled by holding buttons
-	at startup (A and B)
+	- 3 alternate mappings can be enabled by holding buttons
+	at startup (A, B or C)
+
+Saturn   |  A  B  C  X  Y  Z  S  L  R  |  Name
+---------+-----------------------------+----------
+default  |  1, 2, 5, 0, 3, 4, 9, 6, 7  |  SLS
+hold A   |  1, 2, 5, 0, 3, 4, 8, 6, 7  |  SLS-Alt
+hold B   |  0, 1, 2, 3, 4, 5, 8, 6, 7  |  VIP
+hold C   |  0, 1, 2, 3, 4, 5, 6, 7, 8  |  Old
+
 
 --- v1.0 (Jul 2, 2011)
 	- Initial release under GPLv2. 
