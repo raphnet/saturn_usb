@@ -34,7 +34,6 @@ const char usbDescrDevice[] PROGMEM = {    /* USB device descriptor */
 	USB_CFG_VENDOR_ID,
     USB_CFG_DEVICE_ID,
 	USB_CFG_DEVICE_VERSION,
-	0x00, 0x02, // Version: Minor, Major
 	1,	// Manufacturer String
 	2, // Product string
 	3,  // Serial number string
