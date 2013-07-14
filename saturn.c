@@ -72,7 +72,7 @@ static void saturnUpdate(void);
  */
 static const unsigned char saturnPadReport[] PROGMEM = {
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x09, 0x04,                    // USAGE (Joystick)
+    0x09, 0x05,                    // USAGE (Game pad)
     0xa1, 0x01,                    // COLLECTION (Application)
 	0x09, 0x01,                    //   USAGE (Pointer)    
 	0xa1, 0x00,                    //   COLLECTION (Physical)
