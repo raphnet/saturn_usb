@@ -238,7 +238,6 @@ static void idleJoystick(void)
 	joy_report[3] = 0x7F;
 	joy_report[4] = 0;
 	joy_report[5] = 0;
-	joy_report[6] = 0;
 }
 
 static void idleMouse(void)
@@ -305,7 +304,11 @@ static void permuteButtons(void)
 			break;
 	}	
 
-	buttons_out = 0; // ~0x1FF; // clear buttons
+	// Let the analog pad D-Pad buttons 
+	// pass through by masking only those
+	// handled here.
+	buttons_out = buttons_in;
+	buttons_out &= ~0x1FF;
 
 	for (i=0; i<9; i++) {
 		if (buttons_in & (1<<i)) {
