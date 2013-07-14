@@ -1,3 +1,7 @@
+--- v2.0 (July 14, 2013)
+    - Increased compatibility by separating Mouse and Joystick functions.
+	  The mouse is detected at powerup. Fixes Linux and MacOS X problems.
+
 --- v1.1 (Jul 27, 2011)
     - Changed default mapping to be more suitable for PS3
 	- 3 alternate mappings can be enabled by holding buttons
