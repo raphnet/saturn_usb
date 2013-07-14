@@ -210,7 +210,7 @@ int main(void)
 {
 	char must_report = 0, first_run = 1;
 	uchar   idleCounter = 0;
-	int run_mode, i;
+	int i;
 
 	hardwareInit();
 
