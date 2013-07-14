@@ -31,15 +31,13 @@ const char usbDescrDevice[] PROGMEM = {    /* USB device descriptor */
     USB_CFG_DEVICE_SUBCLASS,
     0,          /* protocol */
     8,          /* max packet size */
-    USB_CFG_VENDOR_ID,  /* 2 bytes */
-    USB_CFG_DEVICE_ID,  /* 2 bytes */
-    USB_CFG_DEVICE_VERSION, /* 2 bytes */
-	1,
-	2,
-	3,
-//	USB_CFG_DESCR_PROPS_STRING_VENDOR != 0 ? 1 : 0,         /* manufacturer string index */
-//	USB_CFG_DESCR_PROPS_STRING_PRODUCT != 0 ? 2 : 0,        /* product string index */
-//	USB_CFG_DESCR_PROPS_STRING_SERIAL_NUMBER != 0 ? 3 : 0,  /* serial number string index */
+	USB_CFG_VENDOR_ID,
+    USB_CFG_DEVICE_ID,
+	USB_CFG_DEVICE_VERSION,
+	0x00, 0x02, // Version: Minor, Major
+	1,	// Manufacturer String
+	2, // Product string
+	3,  // Serial number string
     1,          /* number of configurations */
 };
 

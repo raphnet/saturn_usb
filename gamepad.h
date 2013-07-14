@@ -9,7 +9,7 @@ typedef struct {
 
 	int deviceDescriptorSize; // if 0, use default
 	void *deviceDescriptor; // must be in flash
-	
+
 	void (*init)(void);
 	void (*update)(void);
 	char (*changed)(unsigned char report_id);

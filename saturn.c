@@ -1,5 +1,5 @@
 /* Saturn to USB : Sega saturn controllers to USB adapter
- * Copyright (C) 2011 Raphaël Assénat
+ * Copyright (C) 2011-2013 Raphaël Assénat
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,17 +22,17 @@
 #include <util/delay.h>
 #include <avr/pgmspace.h>
 #include <string.h>
+#include "usbdrv.h"
 #include "gamepad.h"
 #include "saturn.h"
 
-#define MAX_REPORT_SIZE			9
+#define MAX_REPORT_SIZE			5	
 #define NUM_REPORTS				2
 
 #define JOYSTICK_REPORT_ID		1
 #define JOYSTICK_REPORT_IDX		(JOYSTICK_REPORT_ID-1)
-#define JOYSTICK_REPORT_SIZE	7
+#define JOYSTICK_REPORT_SIZE	6
 /*
- * report id [1]
  * x
  * y
  * rx
@@ -41,13 +41,11 @@
  * buttons 8-15
  **/
 
-
 #define MOUSE_REPORT_ID			2
 #define MOUSE_REPORT_IDX		(MOUSE_REPORT_ID-1)
-#define MOUSE_REPORT_SIZE		4	
+#define MOUSE_REPORT_SIZE		3	
 /*
- * report id [2]
- * butons
+ * buttons
  * x
  * y
  **/
@@ -59,8 +57,105 @@ static unsigned char last_built_report[NUM_REPORTS][MAX_REPORT_SIZE];
 static unsigned char last_sent_report[NUM_REPORTS][MAX_REPORT_SIZE];
 
 static char report_sizes[NUM_REPORTS] = { JOYSTICK_REPORT_SIZE, MOUSE_REPORT_SIZE };
+static char g_mouse_detected = 0;
+static char g_mouse_mode = 0;
+static Gamepad saturnGamepad;
 
-Gamepad saturnGamepad;
+static void saturnUpdate(void);
+
+/*
+ * [0] X
+ * [1] Y
+ * [2] Rx
+ * [3] Rz
+ * [4] Btn 0-7
+ * [5] Btn 8-15 
+ */
+static const char saturnPadReport[] PROGMEM = {
+    0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
+    0x09, 0x05,                    // USAGE (Game Pad)
+    0xa1, 0x01,                    // COLLECTION (Application)
+//	0x85, 0x01,         //          REPORT_ID (1)
+    0x09, 0x01,                    //   USAGE (Pointer)
+    0xa1, 0x00,                    //   COLLECTION (Physical)
+    0x09, 0x30,                    //     USAGE (X)
+    0x09, 0x31,                    //     USAGE (Y)
+	0x09, 0x36,					   //     USAGE (Rx)
+	0x09, 0x37,						//	  USAGE (Rz)	
+    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+    0x26, 0xff, 0x00,              //     LOGICAL_MAXIMUM (255)
+    0x75, 0x08,                    //   REPORT_SIZE (8)
+    0x95, 0x04,                    //   REPORT_COUNT (4)
+    0x81, 0x02,                    //   INPUT (Data,Var,Abs)
+    0xc0,                          // END_COLLECTION
+    
+	0x05, 0x09,                    // USAGE_PAGE (Button)
+    0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
+    0x29, 0x10,                    //   USAGE_MAXIMUM (Button 16)
+    0x15, 0x00,                    //   LOGICAL_MINIMUM (0)
+    0x25, 0x01,                    //   LOGICAL_MAXIMUM (1)
+    0x75, 0x01,                    // REPORT_SIZE (1)
+    0x95, 0x10,                    // REPORT_COUNT (16)
+    0x81, 0x02,                    // INPUT (Data,Var,Abs)
+
+    0xc0,                          // END_COLLECTION
+
+};
+
+/*
+ * [6] Mouse buttons
+ * [7] Mouse X
+ * [8] Mouse Y
+ */
+static const char saturnMouseReport[] PROGMEM = {
+	0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
+    0x09, 0x02,                    // USAGE (Mouse)
+    0xa1, 0x01,                    // COLLECTION (Application)
+//	0x85, 0x02,         //          REPORT_ID (2)
+    0x09, 0x01,                    //   USAGE (Pointer)
+    0xa1, 0x00,                    //   COLLECTION (Physical)
+    0x05, 0x09,                    //     USAGE_PAGE (Button)
+    0x19, 0x01,                    //     USAGE_MINIMUM (Button 1)
+    0x29, 0x04,                    //     USAGE_MAXIMUM (Button 4)
+    0x15, 0x00,                    //     LOGICAL_MINIMUM (0)
+    0x25, 0x01,                    //     LOGICAL_MAXIMUM (1)
+    0x95, 0x04,                    //     REPORT_COUNT (4)
+    0x75, 0x01,                    //     REPORT_SIZE (1)
+    0x81, 0x02,                    //     INPUT (Data,Var,Abs)
+    0x95, 0x01,                    //     REPORT_COUNT (1)
+    0x75, 0x04,                    //     REPORT_SIZE (4)
+    0x81, 0x03,                    //     INPUT (Cnst,Var,Abs)
+    0xc0,                          //   END_COLLECTION
+
+    0x05, 0x01,                    //     USAGE_PAGE (Generic Desktop)
+    0x09, 0x30,                    //     USAGE (X)
+    0x09, 0x31,                    //     USAGE (Y)
+    0x15, 0x81,                    //     LOGICAL_MINIMUM (-127)
+    0x25, 0x7f,                    //     LOGICAL_MAXIMUM (127)
+    0x75, 0x08,                    //     REPORT_SIZE (8)
+    0x95, 0x02,                    //     REPORT_COUNT (2)
+    0x81, 0x06,                    //     INPUT (Data,Var,Rel)
+    0xc0,                          // END_COLLECTION
+};
+
+
+const char saturnMouseDevDesc[] PROGMEM = {    /* USB device descriptor */
+    18,         /* sizeof(usbDescrDevice): length of descriptor in bytes */
+    USBDESCR_DEVICE,    /* descriptor type */
+    0x01, 0x01, /* USB version supported */
+    USB_CFG_DEVICE_CLASS,
+    USB_CFG_DEVICE_SUBCLASS,
+    0,          /* protocol */
+    8,          /* max packet size */
+	0x9B, 0x28,	// Vendor ID
+    0x06, 0x00, // Product ID
+	0x00, 0x02, // Version: Minor, Major
+	1,	// Manufacturer String
+	2, // Product string
+	3,  // Serial number string
+    1,          /* number of configurations */
+};
+
 
 #define TR_HIGH()	PORTC |= (1<<4)
 #define TR_LOW()	PORTC &= ~(1<<4)
@@ -104,6 +199,19 @@ static void saturnInit(void)
 	PORTB = 0xff;
 
 	SREG = sreg;
+
+	saturnUpdate();
+
+	if (g_mouse_detected) {
+		saturnGamepad.reportDescriptor = (void*)saturnMouseReport;
+		saturnGamepad.reportDescriptorSize = sizeof(saturnMouseReport);
+		saturnGamepad.deviceDescriptor = (void*)saturnMouseDevDesc;
+		saturnGamepad.deviceDescriptorSize = sizeof(saturnMouseDevDesc);
+		g_mouse_mode = 1;
+	} else {
+		saturnGamepad.reportDescriptor = (void*)saturnPadReport;
+		saturnGamepad.reportDescriptorSize = sizeof(saturnPadReport);
+	}
 }
 
 
@@ -132,20 +240,18 @@ static char inline waitTL(char state)
 static void idleJoystick(void)
 {
 	unsigned char *joy_report = last_built_report[JOYSTICK_REPORT_IDX];
-	joy_report[0] = JOYSTICK_REPORT_ID;
-	joy_report[1] = 0x7f;
-	joy_report[2] = 0x7f;
-	joy_report[3] = 0x7f;
-	joy_report[4] = 0x7f;
+	joy_report[0] = 0x80;
+	joy_report[1] = 0x80;
+	joy_report[2] = 0x80;
+	joy_report[3] = 0x80;
+	joy_report[4] = 0;
 	joy_report[5] = 0;
-	joy_report[6] = 0;
 }
 
 static void idleMouse(void)
 {
 	unsigned char *mouse_report = last_built_report[MOUSE_REPORT_IDX];
 	memset(mouse_report, 0, MAX_REPORT_SIZE);
-	mouse_report[0] = MOUSE_REPORT_ID;
 }
 
 #define MAPPING_UNDEFINED	0
@@ -169,8 +275,8 @@ static void permuteButtons(void)
 	char vip[9] 	= { 0, 1, 2, 3, 4, 5, 8, 6, 7 };
 	char *permuter;
 
-	buttons_in = joy_report[5];
-	buttons_in |= joy_report[6] << 8;
+	buttons_in = joy_report[4];
+	buttons_in |= joy_report[5] << 8;
 	
 
 	/* Only run once. Hold A or B at power-up to select mappings. */
@@ -214,8 +320,8 @@ static void permuteButtons(void)
 		}
 	}
 
-	joy_report[5] = buttons_out;
-	joy_report[6] = buttons_out >> 8;
+	joy_report[4] = buttons_out;
+	joy_report[5] = buttons_out >> 8;
 }
 
 static char saturnReadMouse(void)
@@ -227,7 +333,6 @@ static char saturnReadMouse(void)
 	char digital_mode = 0;
 	int nibbles = 8;
 	unsigned char *mouse_report = last_built_report[MOUSE_REPORT_IDX];
-	//unsigned char *joy = last_built_report[JOYSTICK_REPORT_IDX];
 	unsigned char x,y;
 
 	_delay_us(4);
@@ -270,22 +375,19 @@ static char saturnReadMouse(void)
 	idleMouse();
 
 	if (dat[3] & 0x01)
-		mouse_report[1] |= 1;
+		mouse_report[0] |= 1;
 	if (dat[3] & 0x02)
-		mouse_report[1] |= 2;
+		mouse_report[0] |= 2;
 	if (dat[3] & 0x04)
-		mouse_report[1] |= 4;
+		mouse_report[0] |= 4;
 	if (dat[3] & 0x08)
-		mouse_report[1] |= 8;
+		mouse_report[0] |= 8;
 
 	x = (dat[5]&0xf) | (dat[4]<<4);
 	y = (dat[7]&0xf) | (dat[6]<<4);
 
-	mouse_report[2] = x;	
-	mouse_report[3] = 256 - y;	
-
-//	joy[5] = x;
-//	joy[6] = y;
+	mouse_report[1] = x;	
+	mouse_report[2] = 256 - y;	
 
 	return 0;
 }
@@ -340,53 +442,53 @@ static char saturnReadAnalog(void)
 	// dat[5]  : ?  ?  ?  L
 	
 	if (!(dat[3] & 0x04)) // A
-		joy_report[5] |= 0x01;
+		joy_report[4] |= 0x01;
 	if (!(dat[3] & 0x01)) // B
-		joy_report[5] |= 0x02;
+		joy_report[4] |= 0x02;
 	if (!(dat[3] & 0x02)) // C
-		joy_report[5] |= 0x04;
+		joy_report[4] |= 0x04;
 
 	if (!(dat[4] & 0x04)) // X
-		joy_report[5] |= 0x08;
+		joy_report[4] |= 0x08;
 	if (!(dat[4] & 0x02)) // Y
-		joy_report[5] |= 0x10;
+		joy_report[4] |= 0x10;
 	if (!(dat[4] & 0x01)) // Z
-		joy_report[5] |= 0x20;
+		joy_report[4] |= 0x20;
 
 	if (!(dat[3] & 0x08)) // Start
-		joy_report[5] |= 0x40;
+		joy_report[4] |= 0x40;
 
 	if (!(dat[5] & 0x08)) // L
-		joy_report[5] |= 0x80;
+		joy_report[4] |= 0x80;
 	if (!(dat[4] & 0x08)) // R
-		joy_report[6] |= 0x01;
+		joy_report[5] |= 0x01;
 	
 	if (digital_mode) {
 		// switch is in the "+" position
 		if (!(dat[2] & 0x08)) // right
-			joy_report[1] = 0xff;
+			joy_report[0] = 0xff;
 		if (!(dat[2] & 0x04)) // left
-			joy_report[1] = 0x00;
+			joy_report[0] = 0x00;
 		if (!(dat[2] & 0x02)) // down
-			joy_report[2] = 0xff;
+			joy_report[1] = 0xff;
 		if (!(dat[2] & 0x01)) // Up
-			joy_report[2] = 0x00;
+			joy_report[1] = 0x00;
 	}
 	else {
 		if (!(dat[2] & 0x08)) // Right
-			joy_report[6] |= 0x04;
+			joy_report[5] |= 0x04;
 		if (!(dat[2] & 0x04)) // Left
-			joy_report[6] |= 0x08;
+			joy_report[5] |= 0x08;
 		if (!(dat[2] & 0x02)) // Down
-			joy_report[6] |= 0x10;
+			joy_report[5] |= 0x10;
 		if (!(dat[2] & 0x01)) // Up
-			joy_report[6] |= 0x20;
+			joy_report[5] |= 0x20;
 
 		// switch is in the "o" position
-		joy_report[1] = (dat[7] & 0xf) | (dat[6] << 4);
-		joy_report[2] = (dat[9] & 0xf) | (dat[8] << 4);
-		joy_report[3] = (dat[11] & 0xf) | (dat[10] << 4);
-		joy_report[4] = (dat[13] & 0xf) | (dat[12] << 4);
+		joy_report[0] = (dat[7] & 0xf) | (dat[6] << 4);
+		joy_report[1] = (dat[9] & 0xf) | (dat[8] << 4);
+		joy_report[2] = (dat[11] & 0xf) | (dat[10] << 4);
+		joy_report[3] = (dat[13] & 0xf) | (dat[12] << 4);
 	} 
 	
 
@@ -440,35 +542,35 @@ static void saturnReadPad(void)
 	idleJoystick();
 
 	if (!(c & 0x08)) // right
-		joy_report[1] = 0xff;
+		joy_report[0] = 0xff;
 	if (!(c & 0x04)) // left
-		joy_report[1] = 0x00;
+		joy_report[0] = 0x00;
 	if (!(c & 0x02)) // down
-		joy_report[2] = 0xff;
+		joy_report[1] = 0xff;
 	if (!(c & 0x01)) // Up
-		joy_report[2] = 0x00;
+		joy_report[1] = 0x00;
 
 	if (!(b & 0x04)) // A
-		joy_report[5] |= 0x01;
+		joy_report[4] |= 0x01;
 	if (!(b & 0x01)) // B
-		joy_report[5] |= 0x02;
+		joy_report[4] |= 0x02;
 	if (!(b & 0x02)) // C
-		joy_report[5] |= 0x04;
+		joy_report[4] |= 0x04;
 
 	if (!(a & 0x04)) // X
-		joy_report[5] |= 0x08;
+		joy_report[4] |= 0x08;
 	if (!(a & 0x02)) // Y
-		joy_report[5] |= 0x10;
+		joy_report[4] |= 0x10;
 	if (!(a & 0x01)) // Z
-		joy_report[5] |= 0x20;
+		joy_report[4] |= 0x20;
 
 	if (!(b & 0x08)) // Start
-		joy_report[5] |= 0x40;
+		joy_report[4] |= 0x40;
 
 	if (!(d & 0x08)) // L
-		joy_report[5] |= 0x80;
+		joy_report[4] |= 0x80;
 	if (!(a & 0x08)) // R
-		joy_report[6] |= 0x01;
+		joy_report[5] |= 0x01;
 }
 
 static void saturnUpdate(void)
@@ -480,16 +582,6 @@ static void saturnUpdate(void)
 	_delay_us(4);
 
 	tmp = getDat();
-
-#if 0
- 	// detection debugging
-	last_built_report[0] = 0x7f;
-	last_built_report[1] = 0x7f;
-	last_built_report[2] = 0x7f;
-	last_built_report[3] = 0x7f;
-	last_built_report[4] = tmp;
-	last_built_report[5] = 0;
-#endif
 
 	if (tmp == 0x11) {	
 		idleMouse();
@@ -511,6 +603,7 @@ static void saturnUpdate(void)
 	if (tmp == 0x10) {
 		idleJoystick();
 		saturnReadMouse();
+		g_mouse_detected = 1;
 		return;
 	}
 
@@ -521,11 +614,11 @@ static void saturnUpdate(void)
 
 static char saturnBuildReport(unsigned char *reportBuffer, unsigned char report_id)
 {
-	if (report_id < 1 || report_id > 2)
-		return 0;
-
-	// Translate report IDs (starting at 1) to array index
-	report_id--;
+	if (g_mouse_mode) {
+		report_id = MOUSE_REPORT_IDX;
+	} else {
+		report_id = JOYSTICK_REPORT_IDX;
+	}
 
 	if (reportBuffer != NULL)
 	{
@@ -542,8 +635,11 @@ static char saturnChanged(unsigned char report_id)
 	static int first = 1;
 	if (first) { first = 0;  return 1; }
 
-	if (report_id < 1 || report_id > NUM_REPORTS)
-		return 0;
+	if (g_mouse_mode) {
+		report_id = MOUSE_REPORT_IDX;
+	} else {
+		report_id = JOYSTICK_REPORT_IDX;
+	}
 
 	// Translate report IDs (starting at 1) to array index
 	report_id--;
@@ -552,11 +648,10 @@ static char saturnChanged(unsigned char report_id)
 					report_sizes[report_id]);
 }
 
-#include "report_4a_16b_mouse4.c"
 
-Gamepad saturnGamepad = {
-	num_reports: 		2,
-	reportDescriptorSize:	sizeof(usbHidReportDescriptor_4axes_16btns),
+
+static Gamepad saturnGamepad = {
+	num_reports: 		1,
 	init: 				saturnInit,
 	update: 			saturnUpdate,
 	changed:			saturnChanged,
@@ -565,8 +660,6 @@ Gamepad saturnGamepad = {
 
 Gamepad *saturnGetGamepad(void)
 {
-	saturnGamepad.reportDescriptor = (void*)usbHidReportDescriptor_4axes_16btns;
-
 	return &saturnGamepad;
 }
 
