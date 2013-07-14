@@ -26,11 +26,10 @@
 #include "gamepad.h"
 #include "saturn.h"
 
-#define MAX_REPORT_SIZE			5	
+#define MAX_REPORT_SIZE			6
 #define NUM_REPORTS				2
 
-#define JOYSTICK_REPORT_ID		1
-#define JOYSTICK_REPORT_IDX		(JOYSTICK_REPORT_ID-1)
+#define JOYSTICK_REPORT_IDX		0
 #define JOYSTICK_REPORT_SIZE	6
 /*
  * x
@@ -41,8 +40,7 @@
  * buttons 8-15
  **/
 
-#define MOUSE_REPORT_ID			2
-#define MOUSE_REPORT_IDX		(MOUSE_REPORT_ID-1)
+#define MOUSE_REPORT_IDX		1
 #define MOUSE_REPORT_SIZE		3	
 /*
  * buttons
@@ -70,14 +68,14 @@ static void saturnUpdate(void);
  * [3] Rz
  * [4] Btn 0-7
  * [5] Btn 8-15 
+ * [6] Btn 16-23
  */
-static const char saturnPadReport[] PROGMEM = {
+static const unsigned char saturnPadReport[] PROGMEM = {
     0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
-    0x09, 0x05,                    // USAGE (Game Pad)
+    0x09, 0x04,                    // USAGE (Joystick)
     0xa1, 0x01,                    // COLLECTION (Application)
-//	0x85, 0x01,         //          REPORT_ID (1)
-    0x09, 0x01,                    //   USAGE (Pointer)
-    0xa1, 0x00,                    //   COLLECTION (Physical)
+	0x09, 0x01,                    //   USAGE (Pointer)    
+	0xa1, 0x00,                    //   COLLECTION (Physical)
     0x09, 0x30,                    //     USAGE (X)
     0x09, 0x31,                    //     USAGE (Y)
 	0x09, 0x36,					   //     USAGE (Rx)
@@ -87,8 +85,6 @@ static const char saturnPadReport[] PROGMEM = {
     0x75, 0x08,                    //   REPORT_SIZE (8)
     0x95, 0x04,                    //   REPORT_COUNT (4)
     0x81, 0x02,                    //   INPUT (Data,Var,Abs)
-    0xc0,                          // END_COLLECTION
-    
 	0x05, 0x09,                    // USAGE_PAGE (Button)
     0x19, 0x01,                    //   USAGE_MINIMUM (Button 1)
     0x29, 0x10,                    //   USAGE_MAXIMUM (Button 16)
@@ -97,9 +93,8 @@ static const char saturnPadReport[] PROGMEM = {
     0x75, 0x01,                    // REPORT_SIZE (1)
     0x95, 0x10,                    // REPORT_COUNT (16)
     0x81, 0x02,                    // INPUT (Data,Var,Abs)
-
     0xc0,                          // END_COLLECTION
-
+    0xc0,                          // END_COLLECTION
 };
 
 /*
@@ -107,11 +102,10 @@ static const char saturnPadReport[] PROGMEM = {
  * [7] Mouse X
  * [8] Mouse Y
  */
-static const char saturnMouseReport[] PROGMEM = {
+static const unsigned char saturnMouseReport[] PROGMEM = {
 	0x05, 0x01,                    // USAGE_PAGE (Generic Desktop)
     0x09, 0x02,                    // USAGE (Mouse)
     0xa1, 0x01,                    // COLLECTION (Application)
-//	0x85, 0x02,         //          REPORT_ID (2)
     0x09, 0x01,                    //   USAGE (Pointer)
     0xa1, 0x00,                    //   COLLECTION (Physical)
     0x05, 0x09,                    //     USAGE_PAGE (Button)
@@ -125,8 +119,6 @@ static const char saturnMouseReport[] PROGMEM = {
     0x95, 0x01,                    //     REPORT_COUNT (1)
     0x75, 0x04,                    //     REPORT_SIZE (4)
     0x81, 0x03,                    //     INPUT (Cnst,Var,Abs)
-    0xc0,                          //   END_COLLECTION
-
     0x05, 0x01,                    //     USAGE_PAGE (Generic Desktop)
     0x09, 0x30,                    //     USAGE (X)
     0x09, 0x31,                    //     USAGE (Y)
@@ -135,11 +127,11 @@ static const char saturnMouseReport[] PROGMEM = {
     0x75, 0x08,                    //     REPORT_SIZE (8)
     0x95, 0x02,                    //     REPORT_COUNT (2)
     0x81, 0x06,                    //     INPUT (Data,Var,Rel)
+    0xc0,                          //   END_COLLECTION
     0xc0,                          // END_COLLECTION
 };
 
-
-const char saturnMouseDevDesc[] PROGMEM = {    /* USB device descriptor */
+const unsigned char saturnMouseDevDesc[] PROGMEM = {    /* USB device descriptor */
     18,         /* sizeof(usbDescrDevice): length of descriptor in bytes */
     USBDESCR_DEVICE,    /* descriptor type */
     0x01, 0x01, /* USB version supported */
@@ -240,12 +232,13 @@ static char inline waitTL(char state)
 static void idleJoystick(void)
 {
 	unsigned char *joy_report = last_built_report[JOYSTICK_REPORT_IDX];
-	joy_report[0] = 0x80;
-	joy_report[1] = 0x80;
-	joy_report[2] = 0x80;
-	joy_report[3] = 0x80;
+	joy_report[0] = 0x7F;
+	joy_report[1] = 0x7F;
+	joy_report[2] = 0x7F;
+	joy_report[3] = 0x7F;
 	joy_report[4] = 0;
 	joy_report[5] = 0;
+	joy_report[6] = 0;
 }
 
 static void idleMouse(void)
@@ -259,13 +252,14 @@ static void idleMouse(void)
 #define MAPPING_SLS			1
 #define MAPPING_SLS_ALT		2	// Saturn start -> PS3 select
 #define MAPPING_VIP			3
-#define MAPPING_IDENTITY	4
+#define MAPPING_TEST		4
+#define MAPPING_IDENTITY	5
 
 static char current_mapping = MAPPING_UNDEFINED;
 
 static void permuteButtons(void)
 {
-	unsigned short buttons_in, buttons_out;
+	unsigned int buttons_in, buttons_out;
 	unsigned char *joy_report = last_built_report[JOYSTICK_REPORT_IDX];
 	int i;
 
@@ -311,8 +305,7 @@ static void permuteButtons(void)
 			break;
 	}	
 
-	buttons_out = buttons_in;
-	buttons_out &= ~0x1FF; // clear buttons
+	buttons_out = 0; // ~0x1FF; // clear buttons
 
 	for (i=0; i<9; i++) {
 		if (buttons_in & (1<<i)) {
@@ -640,9 +633,6 @@ static char saturnChanged(unsigned char report_id)
 	} else {
 		report_id = JOYSTICK_REPORT_IDX;
 	}
-
-	// Translate report IDs (starting at 1) to array index
-	report_id--;
 
 	return memcmp(last_built_report[report_id], last_sent_report[report_id], 
 					report_sizes[report_id]);
