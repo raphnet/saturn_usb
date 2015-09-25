@@ -41,4 +41,3 @@ const char usbDescrDevice[] PROGMEM = {    /* USB device descriptor */
 };
 
 int getUsbDescrDevice_size(void) { return sizeof(usbDescrDevice); }
-

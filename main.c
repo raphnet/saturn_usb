@@ -38,7 +38,7 @@ static uchar rt_usbHidReportDescriptorSize=0;
 static uchar *rt_usbDeviceDescriptor=NULL;
 static uchar rt_usbDeviceDescriptorSize=0;
 
-PROGMEM int usbDescriptorStringSerialNumber[]  = {
+const PROGMEM int usbDescriptorStringSerialNumber[]  = {
  	USB_STRING_DESCRIPTOR_HEADER(4),
 	'1','0','0','0'
 };

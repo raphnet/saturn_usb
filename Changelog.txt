@@ -1,3 +1,6 @@
+--- v2.1 (September 25, 2015)
+    - Fixed compilation for modern avr-libc / avr-gcc
+
 --- v2.0 (July 14, 2013)
     - Increased compatibility by separating Mouse and Joystick functions.
 	  The mouse is detected at powerup. Fixes Linux and MacOS X problems.
