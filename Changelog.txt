@@ -1,3 +1,6 @@
+--- v2.2 (September 16, 2016)
+    - Add Atmega168 support
+
 --- v2.1 (September 25, 2015)
     - Fixed compilation for modern avr-libc / avr-gcc
 

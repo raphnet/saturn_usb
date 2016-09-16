@@ -21,7 +21,7 @@
 /* This is the Dracal technologies inc. (Raphnet technologies) VID */
 #define USB_CFG_VENDOR_ID       0x9B, 0x28
 #define USB_CFG_DEVICE_ID       0x05, 0x00 // Saturn joystick
-#define USB_CFG_DEVICE_VERSION  0x00, 0x02
+#define USB_CFG_DEVICE_VERSION  0x02, 0x02 // Minor first
 
 #define USB_CFG_VENDOR_NAME     'r', 'a', 'p', 'h', 'n', 'e', 't', '.', 'n', 'e', 't'
 #define USB_CFG_VENDOR_NAME_LEN 11
